@@ -1,0 +1,47 @@
+import json
+import boto3
+from datetime import datetime
+
+dynamodb = boto3.resource('dynamodb')
+table = dynamodb.Table('fileupload')  # 👈 Replace with your table name if different
+
+def lambda_handler(event, context):
+    try:
+        body = json.loads(event['body'])
+        user_id = body['user_id']
+        file_name = body['file_name']
+        file_type = body['file_type']
+        uploaded_at = body.get('uploaded_at', datetime.utcnow().isoformat())  # ISO timestamp
+
+        # Save metadata to DynamoDB
+        table.put_item(
+            Item={
+                'user_id': user_id,
+                'file_name': file_name,
+                'file_type': file_type,
+                'uploaded_at': uploaded_at
+            }
+        )
+
+        return {
+            'statusCode': 200,
+            'headers': {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': '*',
+                'Access-Control-Allow-Methods': '*'
+            },
+            'body': json.dumps({'message': '✅ Metadata saved successfully.'})
+        }
+
+    except Exception as e:
+        print("❌ Error saving metadata:", str(e))
+        return {
+            'statusCode': 500,
+            'headers': {
+                'Access-Control-Allow-Origin': '*'
+            },
+            'body': json.dumps({
+                'error': '❌ Failed to save metadata.',
+                'details': str(e)
+            })
+        }
