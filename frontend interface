@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Upload to S3 using Presigned URL</title>
+</head>
+<body>
+  <h2>Upload File to S3</h2>
+  <input type="file" id="fileInput" />
+  <button onclick="handleUpload()">Upload</button>
+
+  <script>
+    async function handleUpload() {
+      const fileInput = document.getElementById('fileInput');
+      const file = fileInput.files[0];
+
+      if (!file) {
+        alert("Please select a file first.");
+        return;
+      }
+
+      const userId = 'anonymous';
+
+      // Step 1: Get Pre-signed URL
+      const presignRes = await fetch('https://j72tl8mvbb.execute-api.us-east-1.amazonaws.com/test/getUploadUrl', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename: file.name,
+          fileType: file.type,
+          userId: userId
+        })
+      });
+ 
+      const presignData = await presignRes.json();
+      const uploadUrl = presignData.uploadUrl;
+
+      // Step 2: Upload to S3
+      const uploadRes = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': file.type
+        },
+        body: file
+      });
+
+      if (uploadRes.ok) {
+        console.log("✅ File uploaded successfully to S3.");
+
+        // Step 3: Save metadata
+        const metadataRes = await fetch('https://fuwjc6o5w3.execute-api.us-east-1.amazonaws.com/test/saveMetadata', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: userId,
+            file_name: file.name,
+            file_type: file.type,
+            uploaded_at: new Date().toISOString()
+          })
+        });
+
+        if (metadataRes.ok) {
+          alert("✅ Metadata saved to DynamoDB.");
+        } else {
+          alert("❌ File uploaded but metadata failed.");
+        }
+      } else {
+        alert("❌ Upload to S3 failed.");
+      }
+    }
+  </script>
+</body>
+</html>
