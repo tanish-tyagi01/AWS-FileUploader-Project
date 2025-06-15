@@ -1,0 +1,45 @@
+import json
+import boto3
+import os
+s3 = boto3.client('s3')
+BUCKET_NAME = 'your-bucket-name'  # 👈 Replace with your bucket name
+def lambda_handler(event, context):
+    try:
+        body = json.loads(event['body'])
+        filename = body['filename']
+        file_type = body['fileType']
+        user_id = body['userId']
+        key = f"{user_id}/{filename}"
+        presigned_url = s3.generate_presigned_url(
+            'put_object',
+            Params={
+                'Bucket': BUCKET_NAME,
+                'Key': key,
+                'ContentType': file_type
+            },
+            ExpiresIn=3600
+        )
+        print("✅ Generated URL:", presigned_url)
+        return {
+            'statusCode': 200,
+            'headers': {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': '*',
+                'Access-Control-Allow-Methods': '*'
+            },
+            'body': json.dumps({
+                'uploadUrl': presigned_url
+            })
+        }
+    except Exception as e:
+        print("❌ Error:", str(e))
+        return {
+            'statusCode': 500,
+            'headers': {
+                'Access-Control-Allow-Origin': '*'
+            },
+            'body': json.dumps({
+                'error': 'Failed to generate upload URL',
+                'details': str(e)
+            })
+        }
